@@ -1,0 +1,239 @@
+﻿Queries in SQL
+
+
+
+
+1. Retrieve all the raw materials provided by a certain supplier in a particular month of a particular year:
+
+
+
+
+SELECT Material_Name FROM 
+(Material_Master NATURAL JOIN Warehouse NATURAL JOIN Transactions NATURAL JOIN Account_Master)
+WHERE Account_Name = 'Swiss Pharmaceuticals' and 
+EXTRACT(MONTH FROM Transaction_Date) = '09' and
+EXTRACT(YEAR FROM Transaction_Date)=  '2018';
+
+
+
+
+  
+
+
+
+2. Retrieve all the non-ﬂammable raw materials which require cold storage:
+
+
+
+
+ SELECT Material_Name FROM Material_Master 
+WHERE Storage_Condition like '%cool%' and isInflammable = False;
+  
+
+
+
+
+
+3. Retrieve all the raw materials that failed the quality check in this particular month and checked by this particular tester
+
+
+
+
+  SELECT Material_Name FROM (Material_quality_check NATURAL JOIN Material_Master)
+WHERE EXTRACT(MONTH FROM analysis_date) = '10' 
+AND EXTRACT(YEAR FROM analysis_date) = '2018'
+AND Analyst_name = 'Hitesh Patel' AND Results  = 'FAILED';
+
+
+
+
+  
+
+
+
+4. Retrieve all the batches having a size greater than a particular amount and having the expiry date in a particular month of a year:
+
+
+SELECT Batch_No FROM Batch 
+WHERE Batch_Size > '10000'
+AND EXTRACT(MONTH FROM exp_date) = '10' AND EXTRACT(YEAR FROM exp_date) = '2019' order by Batch_No;
+
+
+  
+
+
+
+5. Retrieve all the batches of a particular medicine manufactured in particular month of the year:
+
+
+
+
+       SELECT batch_no FROM batch NATURAL JOIN product_master 
+WHERE EXTRACT(MONTH FROM mfg_date)= '10' AND 
+EXTRACT(YEAR FROM mfg_date)= '2018' AND
+product_name = 'Vitarich' order by batch_no;
+
+
+  
+
+
+
+
+
+
+
+6. Retrieve all the raw materials for a particular medicine which having total stock less than a particular amount
+
+
+
+
+SELECT distinct material_name FROM Product_Master NATURAL JOIN Formula_Master NATURAL JOIN Material_Master
+NATURAL JOIN (select material_ID, sum(stock) as approved_stock, UT_Q_A from warehouse group by material_ID, UT_Q_A having UT_Q_A = 'A') as r1
+WHERE r1.approved_stock < '10000'
+AND product_name = 'Vitarich';
+  
+
+
+
+
+
+________________
+
+
+7. Retrieve all the buyers having outstanding amount more than a particular amount
+
+
+SELECT Account_Name FROM Transactions NATURAL JOIN Account_master group by account_name, paid_received
+having Paid_received = False and sum(total_value) > '100000';
+
+
+
+
+  
+
+
+
+8. Retrieve the sum total of sales in a particular month of a year
+
+
+
+
+SELECT sum(total_value) as Sales FROM  transactions
+WHERE EXTRACT(MONTH FROM transaction_date) = '12'  AND
+EXTRACT(YEAR FROM transaction_date) = '2018' AND
+transaction_type = 'sell';
+
+
+  
+
+
+
+9. Retrieve all the medicines that failed the quality check in a given month of a year. 
+
+
+SELECT distinct Product_Name,Batch_No FROM
+(product_quality_check NATURAL JOIN batch NATURAL JOIN product_Master)
+WHERE EXTRACT(MONTH FROM analysis_date) = '10' 
+                AND EXTRACT(YEAR FROM analysis_date)= '2018'
+             AND Results  = 'FAILED';
+
+
+
+
+  
+
+
+
+10. Retrieve list of medicines ordered by quantity sold:
+
+
+
+
+SELECT Product_Name, sum(Sale_Qty) as sales from FG_Transaction NATURAL JOIN Batch
+NATURAL JOIN PRODUCT_MASTER
+group by Product_Name
+order by sum(Sale_Qty) desc;
+  
+
+
+
+________________
+
+
+11. Retrieve list of Buyers ordered by quantity sold in a given month of a year:
+
+
+SELECT Account_Name,sum(Sale_Qty) as Total_Medicines_Sold FROM FG_Transaction NATURAL JOIN Transactions NATURAL JOIN Account_Master
+where Transaction_Type = 'sell'
+AND EXTRACT(YEAR FROM Transaction_date)= '2018' 
+AND EXTRACT(MONTH FROM Transaction_date)= '12'
+group by Account_Name order by sum(Sale_Qty) desc;
+
+
+  
+
+
+
+
+
+________________
+
+
+12. Retrieve list of Buyers ordered by Amount in a given month of a year:
+
+
+SELECT Account_Name,sum(total_value) as Amount FROM Transactions NATURAL JOIN Account_Master
+where Transaction_Type = 'sell'
+AND EXTRACT(YEAR FROM Transaction_date)= '2018' 
+AND EXTRACT(MONTH FROM Transaction_date)= '12'
+group by Account_Name order by sum(total_value) desc;
+
+
+  
+
+________________
+
+
+13. Retrieve list of Sellers ordered by Value Bought in a given month of a year:
+
+
+SELECT Account_Name,sum(total_value) as "value bought" FROM Transactions NATURAL JOIN Account_Master
+where Transaction_Type = 'buy'
+AND EXTRACT(YEAR FROM Transaction_date)= '2018' 
+AND EXTRACT(MONTH FROM Transaction_date)= '09'
+group by Account_Name order by sum(total_value) desc;
+
+
+  
+
+
+
+
+
+________________
+
+
+14. Retrieve list of Sellers ordered by quantity bought in a given month:
+
+
+SELECT Account_Name,sum(buy_Qty) as "Quantity bought" FROM Transactions NATURAL JOIN Warehouse NATURAL JOIN Account_Master
+where Transaction_Type = 'buy'
+AND EXTRACT(YEAR FROM Transaction_date)= '2018' 
+AND EXTRACT(MONTH FROM Transaction_date)= '09'
+group by Account_Name order by sum(buy_Qty) desc;
+
+
+
+
+  
+
+
+
+
+
+15. Number of batches which failed product quality check in a month:
+
+
+SELECT count(Report_ID) from Batch NATURAL JOIN Product_Quality_Check
+Where Results = 'FAILED'
+AND extract(Month from Analysis_Date) = '10' AND extract(Year from Analysis_Date) = '2018';

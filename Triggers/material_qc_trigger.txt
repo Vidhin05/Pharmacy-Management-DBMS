@@ -1,0 +1,30 @@
+CREATE FUNCTION rmqc()
+RETURNS TRIGGER AS $body$
+BEGIN
+	IF (TG_OP = 'INSERT') THEN
+		IF (NEW.Results = 'PASSED') THEN
+			UPDATE Warehouse SET UT_Q_A = 'A' WHERE Material_ID = NEW.Material_ID AND Invoice_No = NEW.Invoice_No;
+		ELSE
+			UPDATE Warehouse SET UT_Q_A = 'Q' WHERE Material_ID = NEW.Material_ID AND Invoice_No = NEW.Invoice_No;
+		END IF;	
+		RETURN NEW;	
+	END IF;
+	IF (TG_OP = 'UPDATE') THEN
+		IF (NEW.Results = 'PASSED') THEN
+			UPDATE Warehouse SET UT_Q_A = 'A' WHERE Material_ID = NEW.Material_ID AND Invoice_No = NEW.Invoice_No;
+		ELSE
+			UPDATE Warehouse SET UT_Q_A = 'Q' WHERE Material_ID = NEW.Material_ID AND Invoice_No = NEW.Invoice_No;
+		END IF;	
+		RETURN NEW;	
+	END IF;	
+	IF (TG_OP = 'DELETE') THEN
+		UPDATE Warehouse SET UT_Q_A = 'UT' WHERE Material_ID = OLD.Material_ID AND Invoice_No = OLD.Invoice_No;
+		RETURN OLD;	
+	END IF;
+	RETURN NULL;
+END;
+$body$ LANGUAGE 'plpgsql';
+
+CREATE TRIGGER material_qc
+AFTER INSERT OR UPDATE OR DELETE ON Material_Quality_Check
+	FOR EACH ROW EXECUTE PROCEDURE rmqc();

@@ -1,0 +1,36 @@
+CREATE FUNCTION bmat()
+RETURNS TRIGGER AS $body$
+DECLARE
+	iterator1 RECORD;
+	iterator2 RECORD;
+	reqstk NUMERIC(10);
+	dupstk NUMERIC(10);
+BEGIN
+	IF (TG_OP = 'INSERT') THEN
+		FOR iterator1 IN (SELECT * FROM Batch NATURAL JOIN Product_Master NATURAL JOIN Formula_Master WHERE Batch_No = NEW.Batch_No) LOOP
+			reqstk := iterator1.Weight_per_tablet*NEW.Batch_Size*(0.001);
+			FOR iterator2 IN (SELECT * FROM Warehouse WHERE Material_ID = iterator1.Material_ID AND UT_Q_A = 'A') LOOP
+				IF (iterator2.Stock > reqstk) THEN
+					dupstk := iterator2.Stock - reqstk;
+					UPDATE Warehouse SET Stock = dupstk WHERE Material_ID = iterator2.Material_ID AND Invoice_No = iterator2.Invoice_No;
+					INSERT INTO Material_Dispensing VALUES(NEW.Batch_No, iterator2.Material_ID, iterator2.Invoice_No, reqstk);
+					EXIT;
+				END IF;
+			END LOOP;
+		END LOOP;
+		RETURN NEW;	
+	END IF;
+	IF (TG_OP = 'DELETE') THEN
+		FOR iterator1 IN (SELECT * FROM Material_Dispensing WHERE Batch_No = OLD.Batch_No) LOOP
+			SELECT Stock INTO dupstk FROM Warehouse WHERE Material_ID = iterator1.Material_ID AND Invoice_No = iterator1.Invoice_No;
+			dupstk = dupstk + reqstk;
+			UPDATE Warehouse SET Stock = dupstk WHERE Material_ID = iterator1.Material_ID AND Invoice_No = iterator1.Invoice_No;
+		END LOOP;
+		RETURN OLD;
+	END IF;
+	RETURN NULL;
+END;
+$body$ LANGUAGE 'plpgsql';
+
+CREATE TRIGGER batch_materials
+AFTER INSERT OR DELETE ON Batch FOR EACH ROW execute procedure bmat();

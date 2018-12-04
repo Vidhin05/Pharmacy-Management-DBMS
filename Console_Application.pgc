@@ -1,0 +1,222 @@
+#include <stdio.h>
+#include <string.h>
+
+EXEC SQL BEGIN DECLARE SECTION;
+const char *target = "201601003@10.100.71.21:5432";
+const char *username = "201601003";
+const char *password = "201601003";
+int i;
+
+char a[100], b[100], c[100];
+char d;
+char material_name[50];
+EXEC SQL END DECLARE SECTION;
+
+void executeQuery1()
+{
+    printf("\nSelected 1: To retrieve all the raw materials provided by a certain supplier in a particular month of a particular year.\n");
+    printf("\nEnter month\n");
+    scanf("%c",&d);
+    i=0;
+    if (d != '\n') {
+        a[i] = d;
+        i += 1;
+    }
+    for(i;;i++)
+    {
+    scanf("%c",&d);
+    if(d=='\n' || d=='\0')
+    {
+    break;
+    }
+    a[i]=d;
+    }
+    
+    printf("\nEnter year\n");
+    scanf("%c",&d);
+    i=0;
+    if (d != '\n') {
+        b[i] = d;
+        i += 1;
+    }
+    for(i;;i++)
+    {
+        scanf("%c",&d);
+        if(d=='\n' || d=='\0')
+        {
+            break;
+        }
+        b[i]=d;
+    }
+    
+    printf("\nEnter Supplier name\n");
+    scanf("%c",&d);
+    i=0;
+    if (d != '\n') {
+        c[i] = d;
+        i += 1;
+    }
+    for(i;;i++)
+    {
+        scanf("%c",&d);
+        if(d=='\n' || d=='\0')
+        {
+            break;
+        }
+        c[i]=d;
+    }
+
+    EXEC SQL DECLARE curs CURSOR FOR SELECT Material_Name FROM (Material_Master NATURAL JOIN Warehouse NATURAL JOIN Transactions NATURAL JOIN Account_Master) WHERE Account_Name =:c and EXTRACT(MONTH FROM Transaction_Date) =:a and EXTRACT(YEAR FROM Transaction_Date) =:b;
+    
+    EXEC SQL OPEN curs;
+    EXEC SQL FETCH curs INTO :material_name;
+    
+    printf("\nThe materials are: \n");
+    while(sqlca.sqlcode == 0)
+    {
+        printf("\n%s\n",material_name);
+        EXEC SQL FETCH curs INTO :material_name;
+    }
+    EXEC SQL CLOSE curs;
+}
+
+void executeQuery2()
+{
+    printf("\nSelected 2:To retrieve all the non-Inflammable raw materials which require cold storage\n");
+    EXEC SQL DECLARE curs2 CURSOR FOR SELECT Material_Name FROM Material_Master WHERE Storage_Condition like '%cool%' and isInflammable = False;
+    
+    
+    EXEC SQL OPEN curs2;
+    EXEC SQL FETCH curs2 INTO :material_name;
+    
+    printf("\nThe materials are:\n");
+    while(sqlca.sqlcode==0)
+    {
+        printf("\n%s\n",material_name);
+        EXEC SQL FETCH curs2 INTO :material_name;
+    }
+    EXEC SQL CLOSE curs2;
+}
+
+void executeQuery3()
+{
+    printf("\nSelected 3. To retrieve all the raw materials that failed the quality check in this particular month and checked by this particular tester.\n");
+    printf("\nEnter month\n");
+    scanf("%c",&d);
+    i=0;
+    if (d != '\n') {
+        a[i] = d;
+        i += 1;
+    }
+    for(i;;i++)
+    {
+        scanf("%c",&d);
+        if(d=='\n' || d=='\0')
+        {
+            break;
+        }
+        a[i]=d;
+    }
+    
+    printf("\nEnter year\n");
+    scanf("%c",&d);
+    i=0;
+    if (d != '\n') {
+        b[i] = d;
+        i += 1;
+    }
+    for(i;;i++)
+    {
+        scanf("%c",&d);
+        if(d=='\n' || d=='\0')
+        {
+            break;
+        }
+        b[i]=d;
+    }
+    
+    printf("\nEnter Analyst name\n");
+    scanf("%c",&d);
+    i=0;
+    if (d != '\n') {
+        c[i] = d;
+        i += 1;
+    }
+    for(i;;i++)
+    {
+        scanf("%c",&d);
+        if(d=='\n' || d=='\0')
+        {
+            break;
+        }
+        c[i]=d;
+    }
+    EXEC SQL DECLARE curs3 CURSOR FOR SELECT Material_Name FROM (Material_quality_check NATURAL JOIN Material_Master) WHERE EXTRACT(MONTH FROM analysis_date) =:a AND EXTRACT(YEAR FROM analysis_date) =:b AND Analyst_name =:c AND Results = 'FAILED';
+    
+    EXEC SQL OPEN curs3;
+    EXEC SQL FETCH curs3 INTO :material_name;
+    
+    printf("\nThe Raw materials are:\n");
+    while(sqlca.sqlcode==0)
+    {
+        printf("%s\n",material_name);
+        EXEC SQL FETCH curs3 INTO :material_name;
+    }
+    EXEC SQL CLOSE curs3;
+}
+
+void executeUpdate()
+{
+    printf("Enter a Insert/Update/Delete type of query\n");
+    gets(a);
+    
+    EXEC SQL PREPARE stmt FROM :a;
+    EXEC SQL EXECUTE stmt;
+    
+    if(sqlca.sqlcode==0)
+    {
+        printf("\nSuccessful\n");
+    }
+    EXEC SQL COMMIT;
+}
+
+int main()
+{
+    EXEC SQL CONNECT TO :target USER :username USING :password;
+    EXEC SQL WHENEVER SQLERROR SQLPRINT;
+    EXEC SQL WHENEVER SQLWARNING SQLPRINT;
+    EXEC SQL set search_path to pharma_manufacturing;
+    
+    char flag = 'y';
+    
+    while(flag == 'y' || flag == 'Y')
+    {
+        int choice;
+        
+    printf("\nEnter\n1: To retrieve all the raw materials provided by a certain supplier in a particular month of a particular year. \n2: To retrieve all the non-Inflammable raw materials which require cold storage.\n3: To retrieve all the raw materials that failed the quality check in this particular month and checked by this particular tester.\n4: Insert/Update/Delete\n");
+
+        scanf("%d",&choice);
+        
+        switch (choice) {
+            case 1:
+                executeQuery1();
+                break;
+            case 2:
+                executeQuery2();
+                break;
+            case 3:
+                executeQuery3();
+                break;
+            case 4:
+                executeUpdate();
+                break;
+            default:
+                printf("Invalid choice\n");
+                break;
+        }
+        
+        printf("\nWould you like to continue(Y/N): ");
+        scanf("%s",&flag);
+    }
+    return 0;
+}

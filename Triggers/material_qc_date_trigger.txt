@@ -1,0 +1,19 @@
+CREATE FUNCTION rmqc_date()
+RETURNS TRIGGER AS $body$
+DECLARE
+	buydate DATE;
+BEGIN
+	IF (TG_OP = 'INSERT' OR TG_OP = 'UPDATE') THEN
+		SELECT Transaction_Date INTO buydate FROM Warehouse NATURAL JOIN Transactions WHERE Material_ID = NEW.Material_ID AND Invoice_No = NEW.Invoice_No;
+		IF( NEW.Analysis_Date < buydate) THEN
+			RAISE EXCEPTION 'Analysis Date should be same as % or after it',buydate;
+		END IF;			
+		RETURN NEW;	
+	END IF;
+	RETURN NULL;
+END;
+$body$ LANGUAGE 'plpgsql';
+
+CREATE TRIGGER material_qc_date
+BEFORE INSERT OR UPDATE ON Material_Quality_Check
+	FOR EACH ROW EXECUTE PROCEDURE rmqc_date();

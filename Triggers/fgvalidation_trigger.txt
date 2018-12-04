@@ -1,0 +1,37 @@
+CREATE FUNCTION fgval()
+RETURNS TRIGGER AS $body$
+DECLARE
+	Stock NUMERIC(10);
+	flag VARCHAR(3);
+BEGIN
+	IF (TG_OP = 'INSERT') THEN
+		SELECT Stock_Qty INTO Stock FROM Batch WHERE Batch_No = NEW.Batch_No;
+		SELECT UT_Q_A INTO flag FROM Batch WHERE Batch_No = NEW.Batch_No;  
+		IF( NEW.Sale_Qty > Stock OR flag = 'UT' OR flag = 'Q') THEN
+			RAISE EXCEPTION 'Order should be smaller than % and the batch should be approved',Stock;
+		END IF;			
+		RETURN NEW;	
+	END IF;
+	IF (TG_OP = 'UPDATE') THEN
+		IF (NEW.Batch_No = OLD.Batch_No) THEN
+			SELECT Stock_Qty INTO Stock FROM Batch WHERE Batch_No = NEW.Batch_No;
+			SELECT UT_Q_A INTO flag FROM Batch WHERE Batch_No = NEW.Batch_No;  
+			IF( NEW.Sale_Qty > Stock + OLD.Sale_Qty OR flag = 'UT' OR flag = 'Q') THEN
+				RAISE EXCEPTION 'Order should be smaller than % and the batch should be approved',Stock;
+			END IF;
+		ELSE
+			SELECT Stock_Qty INTO Stock FROM Batch WHERE Batch_No = NEW.Batch_No;
+			SELECT UT_Q_A INTO flag FROM Batch WHERE Batch_No = NEW.Batch_No;
+			IF( NEW.Sale_Qty > Stock OR flag = 'UT' OR flag = 'Q') THEN
+				RAISE EXCEPTION 'Order should be smaller than % and the batch should be approved',Stock;
+			END IF;
+		END IF;			
+		RETURN NEW;	
+	END IF;
+	RETURN NULL;
+END;
+$body$ LANGUAGE 'plpgsql';
+
+CREATE TRIGGER fgvalidation
+BEFORE INSERT OR UPDATE ON FG_Transaction
+	FOR EACH ROW EXECUTE PROCEDURE fgval();

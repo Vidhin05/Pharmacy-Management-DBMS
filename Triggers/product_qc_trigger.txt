@@ -1,0 +1,55 @@
+CREATE FUNCTION pqc()
+RETURNS TRIGGER AS $body$
+DECLARE
+	flag VARCHAR(2);
+	iterator RECORD;
+BEGIN
+	 
+	IF (TG_OP = 'INSERT') THEN
+		SELECT UT_Q_A INTO FLAG FROM Batch WHERE Batch_No = NEW.Batch_No;
+		IF (flag = 'UT' OR flag = 'A') THEN
+			IF (NEW.Results = 'PASSED') THEN
+				UPDATE Batch SET UT_Q_A = 'A' WHERE Batch_No = NEW.Batch_No;
+			ELSE
+				UPDATE Batch SET UT_Q_A = 'Q' WHERE Batch_No = NEW.Batch_No;
+			END IF;	
+		END IF;
+		RETURN NEW;	
+	END IF;
+	IF (TG_OP = 'UPDATE') THEN
+		SELECT UT_Q_A INTO FLAG FROM Batch WHERE Batch_No = NEW.Batch_No;
+		IF (flag = 'UT' OR flag = 'A') THEN
+			IF (NEW.Results = 'PASSED') THEN
+				UPDATE Batch SET UT_Q_A = 'A' WHERE Batch_No = NEW.Batch_No;
+			ELSE
+				UPDATE Batch SET UT_Q_A = 'Q' WHERE Batch_No = NEW.Batch_No;
+			END IF;	
+		END IF;
+		RETURN NEW;	
+	END IF;	
+	IF (TG_OP = 'DELETE') THEN
+		flag = '0';
+		FOR iterator in (SELECT * FROM Product_Quality_Check WHERE Batch_NO = OLD.Batch_No) LOOP
+		IF (iterator.Results = 'PASSED') THEN
+			flag = '1';
+		ELSE
+			flag = '2';
+			EXIT;
+		END IF;
+		END LOOP;
+		IF (Flag = '0') THEN
+			UPDATE Batch SET UT_Q_A = 'UT' WHERE Batch_No = OLD.Batch_No;
+		ELSIF (Flag = '1') THEN
+			UPDATE Batch SET UT_Q_A = 'A' WHERE Batch_No = OLD.Batch_No;
+		ELSE 
+			UPDATE Batch SET UT_Q_A = 'Q' WHERE Batch_No = OLD.Batch_No;
+		END IF;
+		RETURN OLD;	
+	END IF;
+	RETURN NULL;
+END;
+$body$ LANGUAGE 'plpgsql';
+
+CREATE TRIGGER product_qc
+AFTER INSERT OR UPDATE OR DELETE ON Product_Quality_Check
+	FOR EACH ROW EXECUTE PROCEDURE pqc();

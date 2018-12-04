@@ -1,0 +1,39 @@
+CREATE FUNCTION fgtobatch()
+RETURNS TRIGGER AS $body$
+DECLARE
+	Stock NUMERIC(10);
+BEGIN
+	IF (TG_OP = 'INSERT') THEN
+		SELECT Stock_Qty INTO Stock FROM Batch WHERE Batch_No = NEW.Batch_No;  
+		Stock := Stock - NEW.Sale_Qty;
+		UPDATE Batch SET Stock_Qty = Stock WHERE Batch_No = NEW.Batch_No;	
+		RETURN NEW;	
+	END IF;
+	IF (TG_OP = 'UPDATE') THEN
+		IF (NEW.Batch_No = OLD.Batch_No) THEN
+			SELECT Stock_Qty INTO Stock FROM Batch WHERE Batch_No = NEW.Batch_No;  
+			Stock := Stock + OLD.Sale_Qty - NEW.Sale_Qty;
+			UPDATE Batch SET Stock_Qty = Stock WHERE Batch_No = NEW.Batch_No;
+		ELSE
+			SELECT Stock_Qty INTO Stock FROM Batch WHERE Batch_No = NEW.Batch_No;
+			Stock := Stock - NEW.Sale_Qty;
+			UPDATE Batch SET Stock_Qty = Stock WHERE Batch_No = NEW.Batch_No;
+			SELECT Stock_Qty INTO Stock FROM Batch WHERE Batch_No = OLD.Batch_No;
+			Stock := Stock + OLD.Sale_Qty;
+			UPDATE Batch SET Stock_Qty = Stock WHERE Batch_No = OLD.Batch_No;
+		END IF;			
+		RETURN NEW;	
+	END IF;
+	IF (TG_OP = 'DELETE') THEN
+		SELECT Stock_Qty INTO Stock FROM Batch WHERE Batch_No = OLD.Batch_No;  
+		Stock := Stock + OLD.Sale_Qty;
+		UPDATE Batch SET Stock_Qty = Stock WHERE Batch_No = OLD.Batch_No;	
+		RETURN OLD;	
+	END IF;
+	RETURN NULL;
+END;
+$body$ LANGUAGE 'plpgsql';
+
+CREATE TRIGGER batch_stock_change
+AFTER INSERT OR UPDATE OR DELETE ON FG_Transaction
+	FOR EACH ROW EXECUTE PROCEDURE fgtobatch();

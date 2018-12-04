@@ -1,0 +1,18 @@
+CREATE FUNCTION fgtransactions_tally()
+RETURNS VOID AS $body$
+DECLARE
+	iterator1 RECORD;
+	iterator2 RECORD;
+	sum NUMERIC(10,2);
+BEGIN
+	FOR iterator1 IN (SELECT * FROM Transactions WHERE Transaction_Type = 'sell') LOOP
+		sum := 0;
+		FOR iterator2 IN (SELECT * FROM Transactions NATURAL JOIN FG_Transaction WHERE Invoice_No = iterator1.Invoice_No) LOOP
+			sum := sum + iterator2.Val;
+		END LOOP;
+		IF (sum != iterator1.Total_Value) THEN
+			RAISE NOTICE 'Issue with Invoice_No %',iterator1.Invoice_No;
+		END IF;
+	END LOOP;
+END;
+$body$ LANGUAGE 'plpgsql';

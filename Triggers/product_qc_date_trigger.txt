@@ -1,0 +1,19 @@
+CREATE FUNCTION pqc_date()
+RETURNS TRIGGER AS $body$
+DECLARE
+	mfgdate DATE;
+BEGIN
+	IF (TG_OP = 'INSERT' OR TG_OP = 'UPDATE') THEN
+		SELECT Mfg_Date INTO mfgdate FROM Batch WHERE Batch_No = NEW.Batch_No;
+		IF( NEW.Analysis_Date < mfgdate) THEN
+			RAISE EXCEPTION 'Analysis Date should be same as % or after it',mfgdate;
+		END IF;			
+		RETURN NEW;	
+	END IF;
+	RETURN NULL;
+END;
+$body$ LANGUAGE 'plpgsql';
+
+CREATE TRIGGER product_qc_date
+BEFORE INSERT OR UPDATE ON Product_Quality_Check
+	FOR EACH ROW EXECUTE PROCEDURE pqc_date();
